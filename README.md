@@ -34,5 +34,5 @@ To be added...
     The original paper was written by Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun.  
     The paper can be found here: [Deep Residual Learning for Image Recognition](https://arxiv.org/pdf/1512.03385.pdf).
 - GoogLeNet:  
-    The original paper was written by Christian Szegedy, Wei Liu, Yangqing Jia, Pierre Sermanet, Scott Reed, Dragomir Anguelov, Dumitru Erhan, Vincent Vanhoucke, and Andrew Rabinovich.
+    The original paper was written by Christian Szegedy, Wei Liu, Yangqing Jia, Pierre Sermanet, Scott Reed, Dragomir Anguelov, Dumitru Erhan, Vincent Vanhoucke, and Andrew Rabinovich.  
     The paper can be found here: [Going Deeper with Convolutions](https://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Szegedy_Going_Deeper_With_2015_CVPR_paper.pdf).
