@@ -3,16 +3,16 @@ import numpy as np
 import tensorflow as tf
 
 class LeNet:
-    def __init__(self, height, width, channels):
+    def __init__(self, height, width, channels, learning_rate):
         self.height = height
         self.width = width
         self.channels = channels
-        self.learning_rate = 1e-4
+        self.learning_rate = learning_rate
         self.network = None
         self.loss = None
         self.optimizer = None
 
-    def network(self, inputs, labels, is_training):
+    def build_model(self, inputs, labels, is_training=False):
         self.network = ops.convolution(inputs, self.channels, 50, 5, 50,
                                        is_training=is_training, scope='conv1')
 
@@ -35,7 +35,7 @@ class LeNet:
         self.loss = ops.loss(self.network, labels, scope='loss')
 
         if is_training:
-            self.optimizer = ops.optimize(self.loss, self.learning_rate)
+            self.optimizer = ops.optimize(self.loss, self.learning_rate, scope='update')
 
 
 class AlexNet:
@@ -62,8 +62,8 @@ class VGG19:
         self.loss = None
         self.optimizer = None
 
-    def network(self, inputs, labels is_training):
-        self.network = 
+    def network(self, inputs, labels, is_training):
+        pass
 
 
 class ResNet50:
