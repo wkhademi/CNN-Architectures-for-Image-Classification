@@ -42,7 +42,7 @@ def fetch_dataset(dataset_name):
             test_labels: Corresponding testing labels for testing image set
     """
     for name, load_dataset in VALID_DATASETS.iteritems():
-        if dataset_name is name:
+        if dataset_name == name:
             train, test = load_dataset()
 
             # unpack tuples
@@ -81,7 +81,7 @@ def fetch_model(model_name):
             model: Desired model object
     """
     for name, model in VALID_MODELS.iteritems():
-        if model_name is name:
+        if model_name == name:
             return model
 
     print("Error: invalid model passed in as an argument")
