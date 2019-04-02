@@ -105,17 +105,94 @@ class AlexNet:
 
 
 class VGG19:
-    def __init__(self, height, width, channels):
+    def __init__(self, height, width, channels, learning_rate):
         self.height = height
         self.width = width
         self.channels = channels
-        self.learning_rate = 1e-4
+        self.learning_rate = learning_rate
         self.network = None
         self.loss = None
         self.optimizer = None
+        self.image_size = 224
 
-    def network(self, inputs, labels, is_training):
-        pass
+    def build_model(self, inputs, labels, is_training):
+        # pad inputs to size 224x224x3 - NOTE: may change to bilinear upsampling
+        pad = int((self.image_size - self.height) / 2)
+        inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
+
+        # convolution with 3x3 kernel and stride 1 (new size: 224x224x64)
+        self.network = ops.convolution(inputs, self.channels, 64, 3, 64,
+                                       is_training=is_training, scope='conv1')
+
+        # convolution with 3x3 kernel and stride 1 (new size: 224x224x64)
+        self.network = ops.convolution(self.network, 64, 64, 3, 64,
+                                       is_training=is_training, scope='conv2')
+
+        # pooling with 2x2 kernel and stride 2 (new size: 112x112x64)
+        self.network = ops.pooling(self.network, scope='pool1')
+
+        # convolution with 3x3 kernel and stride 1 (new size: 112x112x128)
+        self.network = ops.convolution(self.network, 64, 128, 3, 128,
+                                       is_training=is_training, scope='conv3')
+
+        # convolution with 3x3 kernel and stride 1 (new size: 112x112x128)
+        self.network = ops.convolution(self.network, 128, 128, 3, 128,
+                                       is_training=is_training, scope='conv4')
+
+        # pooling with 2x2 kernel and stride 2 (new size: 56x56x128)
+        self.network = ops.pooling(self.network, scope='pool2')
+
+        # convolution with 3x3 kernel and stride 1 (new size: 56x56x256)
+        self.network = ops.convolution(self.network, 128, 256, 3, 256,
+                                       is_training=is_training, scope='conv5')
+
+        # 3 convolutions with 3x3 kernel and stride 1 (new size: 56x56x256)
+        for idx in range(6, 9):
+            self.network = ops.convolution(self.network, 256, 256, 3, 256,
+                                          is_training=is_training, scope='conv' + str(idx))
+
+        # pooling with 2x2 kernel and stride 2 (new size: 28x28x256)
+        self.network = ops.pooling(self.network, scope='pool3')
+
+        # convolution with 3x3 kernel and stride 1 (new size: 28x28x512)
+        self.network = ops.convolution(self.network, 256, 512, 3, 512,
+                                       is_training=is_training, scope='conv9')
+
+        # 3 convolutions with 3x3 kernel and stride 1 (new size: 28x28x512)
+        for idx in range(10, 13):
+            self.network = ops.convolution(self.network, 512, 512, 3, 512,
+                                          is_training=is_training, scope='conv' + str(idx))
+
+        # pooling with 2x2 kernel and stride 2 (new size: 14x14x512)
+        self.network = ops.pooling(self.network, scope='pool4')
+
+        # 4 convolutions with 3x3 kernel and stride 1 (new size: 14x14x512)
+        for idx in range(13, 17):
+            self.network = ops.convolution(self.network, 512, 512, 3, 512,
+                                          is_training=is_training, scope='conv' + str(idx))
+
+        # pooling with 2x2 kernel and stride 2 (new size: 7x7x512)
+        self.network = ops.pooling(self.network, scope='pool5')
+
+        # flatten (new size: 25088)
+        self.network = ops.flatten(self.network, scope='flatten')
+
+        # fully connected layer (new size: 4096)
+        self.network = ops.dense(self.network, 25088, 4096, dropout=True, dropout_rate=0.2,
+                                 is_training=is_training, scope='fc1')
+
+        # fully connected layer (new size: 1024) -- Original Paper Size: 4096 (for ImageNet)
+        self.network = ops.dense(self.network, 4096, 1024, dropout=True, dropout_rate=0.2,
+                                 is_training=is_training, scope='fc2')
+
+        # output layer (new size: 10) -- Original Paper Size: 1000 (for ImageNet)
+        self.network = ops.dense(self.network, 1024, 10, activation=None,
+                                 is_training=is_training, scope='fc3')
+
+        self.loss = ops.loss(self.network, labels, scope='loss')
+
+        if is_training:
+            self.optimizer = ops.optimize(self.loss, self.learning_rate, scope='update')
 
 
 class ResNet50:
