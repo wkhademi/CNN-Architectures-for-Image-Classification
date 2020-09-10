@@ -10,6 +10,7 @@ class LeNet:
         self.learning_rate = learning_rate
         self.network = None
         self.loss = None
+        self.accuracy = None
         self.optimizer = None
 
     def build_model(self, inputs, labels, is_training=False):
@@ -33,6 +34,7 @@ class LeNet:
         self.network = ops.dense(self.network, 50, 10, activation=None, scope='fc3')
 
         self.loss = ops.loss(self.network, labels, scope='loss')
+        self.accuracy = ops.accuracy(self.network, labels, scope='accuracy')
 
         if is_training:
             self.optimizer = ops.optimize(self.loss, self.learning_rate, scope='update')
@@ -47,6 +49,7 @@ class AlexNet:
         self.network = None
         self.loss = None
         self.optimizer = None
+        self.accuracy = None
         self.image_size = 224
 
     def build_model(self, inputs, labels, is_training):
@@ -56,7 +59,7 @@ class AlexNet:
 
         # convolution with 11x11 kernel and stride 4 (new size: 55x55x96)
         self.network = ops.convolution(inputs, self.channels, 96, 11, 96, stride=4,
-                                       padding='VALID', is_training=is_training, scope='conv1')
+                                       is_training=is_training, scope='conv1')
 
         # pooling with 3x3 kernel and stride 2 (new size: 27x27x96)
         self.network = ops.pooling(self.network, k_size=3, scope='pool1')
@@ -99,6 +102,7 @@ class AlexNet:
                                  is_training=is_training, scope='fc3')
 
         self.loss = ops.loss(self.network, labels, scope='loss')
+        self.accuracy = ops.accuracy(self.network, labels, scope='accuracy')
 
         if is_training:
             self.optimizer = ops.optimize(self.loss, self.learning_rate, scope='update')
@@ -113,6 +117,7 @@ class VGG19:
         self.network = None
         self.loss = None
         self.optimizer = None
+        self.accuracy = None
         self.image_size = 224
 
     def build_model(self, inputs, labels, is_training):
@@ -190,14 +195,110 @@ class VGG19:
                                  is_training=is_training, scope='fc3')
 
         self.loss = ops.loss(self.network, labels, scope='loss')
+        self.accuracy = ops.accuracy(self.network, labels, scope='accuracy')
 
         if is_training:
             self.optimizer = ops.optimize(self.loss, self.learning_rate, scope='update')
 
 
 class ResNet50:
-    def __init__(self):
-        pass
+    def __init__(self, height, width, channels, learning_rate):
+        self.height = height
+        self.width = width
+        self.channels = channels
+        self.learning_rate = learning_rate
+        self.network = None
+        self.loss = None
+        self.optimizer = None
+        self.accuracy = None
+        self.image_size = 224
+
+    def build_model(self, inputs, labels, is_training):
+        def res_block(inputs, in_channels, out_channels, is_training, idx):
+            net = ops.convolution(inputs, in_channels[0], out_channels[0], 1, out_channels[0],
+                                  is_training=is_training, scope='res%s_conv1'%idx)
+
+            net = ops.convolution(net, in_channels[1], out_channels[1], 3, out_channels[1],
+                                  is_training=is_training, scope='res%s_conv2'%idx)
+
+            net = ops.convolution(net, in_channels[2], out_channels[2], 1, out_channels[2],
+                                  activation=None, is_training=is_training, scope='res%s_conv3'%idx)
+
+            return tf.nn.relu(inputs+net, scope='res%s_relu'%idx)
+
+        def res_conv_block(inputs, in_channel, out_channel, stride, is_training, idx):
+            skip = ops.convolution(inputs, in_channels[0], out_channels[2], 1, out_channels[2],
+                                   stride=stride, activation=None, is_training=is_training,
+                                   scope='res%s_skip'%idx)
+
+            net = ops.convolution(inputs, in_channels[0], out_channels[0], 1, out_channels[0],
+                                  is_training=is_training, scope='res%s_conv1'%idx)
+
+            net = ops.convolution(net, in_channels[1], out_channels[1], 3, out_channels[1],
+                                  is_training=is_training, scope='res%s_conv2'%idx)
+
+            net = ops.convolution(net, in_channels[2], out_channels[2], 1, out_channels[2],
+                                  stride=stride, activation=None, is_training=is_training,
+                                  scope='res%s_conv3'%idx)
+
+            return tf.nn.relu(skip+net, scope='res%s_relu'%idx)
+
+        # pad inputs to size 224x224x3 - NOTE: may change to bilinear upsampling
+        pad = int((self.image_size - self.height) / 2)
+        inputs = tf.pad(inputs, [[0, 0], [pad, pad], [pad, pad], [0, 0]])
+
+        # convolution with 7x7 kernel and stride 2 (new size: 112x112x64)
+        self.network = ops.convolution(inputs, self.channels, 64, 7, 64, stride=2,
+                                       is_training=is_training, scope='conv1')
+
+        # pooling with 3x3 kernel and stride 2 (new size: 56x56x64)
+        self.network = ops.pooling(self.network, k_size=3, scope='pool1')
+
+        # residual block 1
+        stride = 1
+        out_channels = [64, 64, 256]
+        self.network = res_conv_block(self.network, [64, 64, 64], out_channels, stride, is_training, 1)
+        self.network = res_block(self.network, [256, 64, 64], out_channels, is_training, 2)
+        self.network = res_block(self.network, [256, 64, 64], out_channels, is_training, 3)
+
+        # residual block 2
+        stride = 2
+        out_channels = [128, 128, 512]
+        self.network = res_conv_block(self.network, [256, 128, 128], out_channels, stride, is_training, 4)
+        self.network = res_block(self.network, [512, 128, 128], out_channels, is_training, 5)
+        self.network = res_block(self.network, [512, 128, 128], out_channels, is_training, 6)
+        self.network = res_block(self.network, [512, 128, 128], out_channels, is_training, 7)
+
+        # residual block 3
+        stride = 2
+        out_channels = [256, 256, 1024]
+        self.network = res_conv_block(self.network, [512, 256, 256], out_channels, stride, is_training, 8)
+        self.network = res_block(self.network, [1024, 256, 256], out_channels, is_training, 9)
+        self.network = res_block(self.network, [1024, 256, 256], out_channels, is_training, 10)
+        self.network = res_block(self.network, [1024, 256, 256], out_channels, is_training, 11)
+        self.network = res_block(self.network, [1024, 256, 256], out_channels, is_training, 12)
+        self.network = res_block(self.network, [1024, 256, 256], out_channels, is_training, 13)
+
+        # residual block 4
+        stride = 2
+        out_channels = [512, 512, 2048]
+        self.network = res_conv_block(self.network, [1024, 512, 512], out_channels, stride, is_training, 14)
+        self.network = res_block(self.network, [2048, 512, 512], out_channels, is_training, 15)
+        self.network = res_block(self.network, [2048, 512, 512], out_channels, is_training, 16)
+
+        # average pooling
+        self.network = tf.nn.avg_pool(self.network, 7, 1, 'SAME', scope='avg_pool')
+        self.network = ops.flatten(self.network, scope='flatten')
+
+        # fully connected
+        self.network = ops.dense(self.network, 2048, 10, activation=None,
+                                 is_training=is_training, scope='fc')
+
+        self.loss = ops.loss(self.network, labels, scope='loss')
+        self.accuracy = ops.accuracy(self.network, labels, scope='accuracy')
+
+        if is_training:
+            self.optimizer = ops.optimize(self.loss, self.learning_rate, scope='update')
 
 
 class GoogLeNet:
@@ -209,6 +310,7 @@ class GoogLeNet:
         self.network = None
         self.loss = None
         self.optimizer = None
+        self.accuracy = None
         self.image_size = 224
 
     def build_model(self, inputs, labels, is_training):
@@ -217,7 +319,7 @@ class GoogLeNet:
 
         # convolution with 7x7 kernel and stride 2 (new size: 112x112x64)
         self.network = ops.convolution(inputs, self.channels, 64, 7, 64, stride=2,
-                                       padding='VALID', is_training=is_training, scope='conv1')
+                                       is_training=is_training, scope='conv1')
 
         # pooling with 3x3 kernel and stride 2 (new size: 56x56x64)
         self.network = ops.pooling(self.network, k_size=3, scope='pool1')
@@ -292,7 +394,7 @@ class GoogLeNet:
 
         # pooling with 7x7 kernel and stride 1 (new size: 1x1x1024)
         with tf.variable_scope('final_pool', reuse=tf.AUTO_REUSE):
-            self.network = tf.nn.avg_pool(self.network, 7, 1 'VALID', scope='pool')
+            self.network = tf.nn.avg_pool(self.network, 7, 1, 'SAME', scope='pool')
 
         # flatten (new size: 1024)
         self.network = ops.flatten(self.network, scope='flatten')
@@ -306,6 +408,7 @@ class GoogLeNet:
                                  is_training=is_training, scope='fc2')
 
         loss = ops.loss(self.network, labels, scope='loss')
+        self.accuracy = ops.accuracy(self.network, labels, scope='accuracy')
 
         if is_training: # if training use auxiliary classifiers as well
             self.loss = loss + aux_loss1 + aux_loss2
@@ -357,7 +460,7 @@ class GoogLeNet:
         """
         with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
             # pooling layer with 5x5 kernel and stride 3 (new size: 4x4xC)
-            network = tf.nn.avg_pool(inputs, 5, 3, 'VALID', name='pool')
+            network = tf.nn.avg_pool(inputs, 5, 3, 'SAME', name='pool')
 
             # convolution with 1x1 kernel and stride 1 (new size: 4x4x128)
             network = ops.convolution(network, input_channels, 128, 1, 128, batch_norm=False,

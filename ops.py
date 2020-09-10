@@ -5,7 +5,6 @@ def convolution(inputs,
                 input_size,
                 output_size,
                 weight_size,
-                bias_size,
                 stride=1,
                 padding='SAME',
                 weight_init=tf.glorot_uniform_initializer(),
@@ -24,7 +23,7 @@ def convolution(inputs,
                             name='conv2d')
 
         biases = tf.get_variable('biases', shape=[bias_size], dtype=tf.float32,
-                               initializer=bias_init)
+                                 initializer=bias_init)
 
         conv = tf.nn.bias_add(conv, biases, name='conv2d_preact')
 
@@ -44,7 +43,7 @@ def convolution(inputs,
 def pooling(inputs,
             k_size=2,
             stride=2,
-            padding='VALID',
+            padding='SAME',
             scope=None):
     with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
         pool = tf.nn.max_pool(inputs, ksize=[1, k_size, k_size, 1],
@@ -105,8 +104,20 @@ def loss(logits,
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels, logits=logits,
                                                                    name='loss')
         loss = tf.reduce_mean(cross_entropy)
-        
+
     return loss
+
+
+def accuracy(logits,
+             labels,
+             scope=None):
+    with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+        labels = tf.argmax(labels, output_type=tf.int32)
+        pred_labels = tf.argmax(tf.nn.softmax(logits), output_type=tf.int32)
+        predicted_correct = tf.equal(labels, pred_labels)
+        accuracy = tf.reduce_mean(tf.cast(predicted_correct, tf.float32))
+
+        return accuracy
 
 
 def optimize(loss,
